@@ -1,7 +1,9 @@
-# thingino-arch
+# Thingino Architect
 
-Structural review tooling for the [Thingino](https://thingino.com/) firmware
-tree.
+Architecture-aware structural review tooling for the
+[Thingino](https://thingino.com/) firmware tree.
+
+The repository is `thingino-architect`; the CLI is `thingino-arch`.
 
 `thingino-arch` reads a Thingino checkout, builds an index of the project's
 build graph, maps a change to the packages, camera profiles, SoC families,

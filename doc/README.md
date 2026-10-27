@@ -1,9 +1,9 @@
-# thingino-arch documentation
+# Thingino Architect documentation
 
-`thingino-arch` is a structural review layer for the Thingino firmware tree.
-It builds an index of the project's build graph, maps a change to the parts of
-the project it touches, runs deterministic structural checks, and prepares the
-context for an LLM or `open-code-review` pass.
+Thingino Architect (`thingino-arch`) is a structural review layer for the
+Thingino firmware tree. It builds an index of the project's build graph, maps a
+change to the parts of the project it touches, runs deterministic structural
+checks, and prepares the context for an LLM or `open-code-review` pass.
 
 See the [project README](../README.md) for the quick start.
 

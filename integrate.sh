@@ -5,6 +5,7 @@ SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 TOOL_DIR=$SCRIPT_DIR
 REPO=${THINGINO_REPO:-"$SCRIPT_DIR/../firmware/master"}
 WITH_OCR=0
+WITH_QEMU=0
 REFRESH_BASELINE=0
 DRY_RUN=0
 FORCE=0
@@ -19,6 +20,7 @@ Options:
   --repo PATH            Firmware checkout (default: $THINGINO_REPO or ../firmware/master)
   --tool PATH            thingino-arch source directory (default: script directory)
   --with-ocr             Also install the optional OCR review workflow
+  --with-qemu            Also install the optional QEMU verification workflow
   --refresh-baseline     Regenerate tools/thingino-arch/baseline.json
   --force                Overwrite existing workflow files
   --dry-run              Print actions without changing anything
@@ -48,6 +50,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--with-ocr)
 			WITH_OCR=1
+			shift
+			;;
+		--with-qemu)
+			WITH_QEMU=1
 			shift
 			;;
 		--refresh-baseline)
@@ -138,6 +144,9 @@ preflight_workflow "$TOOL_DIR/ci/architecture-check.yml" "$REPO/.github/workflow
 if [ "$WITH_OCR" -eq 1 ]; then
 	preflight_workflow "$TOOL_DIR/ci/ocr-review.yml" "$REPO/.github/workflows/ocr-architecture-review.yml"
 fi
+if [ "$WITH_QEMU" -eq 1 ]; then
+	preflight_workflow "$TOOL_DIR/ci/qemu-check.yml" "$REPO/.github/workflows/qemu-check.yml"
+fi
 
 echo "Installing thingino-arch into $DEST"
 run mkdir -p "$DEST" "$REPO/.github/workflows"
@@ -164,6 +173,9 @@ install_workflow "$TOOL_DIR/ci/architecture-check.yml" "$REPO/.github/workflows/
 
 if [ "$WITH_OCR" -eq 1 ]; then
 	install_workflow "$TOOL_DIR/ci/ocr-review.yml" "$REPO/.github/workflows/ocr-architecture-review.yml"
+fi
+if [ "$WITH_QEMU" -eq 1 ]; then
+	install_workflow "$TOOL_DIR/ci/qemu-check.yml" "$REPO/.github/workflows/qemu-check.yml"
 fi
 
 if [ "$DRY_RUN" -eq 0 ]; then
@@ -197,4 +209,7 @@ Next:
   3. Optional OCR workflow:
      - rerun this script with --with-ocr
      - configure OCR_LLM_URL, OCR_LLM_AUTH_TOKEN, OCR_LLM_MODEL, and OCR_LLM_USE_ANTHROPIC
+  4. Optional QEMU workflow:
+     - rerun this script with --with-qemu
+     - run it on a self-hosted runner with the QEMU test dependencies
 EOF

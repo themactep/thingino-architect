@@ -119,6 +119,7 @@ Two Thingino traps are encoded in the rules:
   WebUI plugins, patches, and component bumps;
 - structural invariants;
 - known traps;
+- runtime verification expectations and QEMU coverage;
 - review behavior and output contract.
 
 Pass it as background to OCR:
@@ -137,8 +138,8 @@ string; the template instructs the model to read
 ## Review packet
 
 The packet is the preferred route for a structural architecture review. It
-contains the diff, impact report, index slices, deterministic findings, the
-architecture brief, and the review prompt.
+contains the diff, impact report, QEMU verification plan, index slices,
+deterministic findings, the architecture brief, and the review prompt.
 
 ```sh
 bin/thingino-arch packet \

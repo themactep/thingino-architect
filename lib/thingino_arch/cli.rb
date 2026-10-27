@@ -15,6 +15,7 @@ module ThinginoArch
       case command
       when "index" then index(argv)
       when "impact" then impact(argv)
+      when "verify" then verify(argv)
       when "check" then check(argv)
       when "packet" then packet(argv)
       when "version", "--version", "-v" then puts VERSION
@@ -80,6 +81,45 @@ module ThinginoArch
       end
     end
 
+    def verify(argv)
+      options = { format: "text" }
+      parser = OptionParser.new do |opts|
+        opts.banner = "Usage: thingino-arch verify [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full] [--output FILE]"
+        opts.on("--repo PATH", "Thingino firmware checkout") { |value| options[:repo] = value }
+        opts.on("--from REF", "Base ref") { |value| options[:from] = value }
+        opts.on("--to REF", "Head ref") { |value| options[:to] = value }
+        opts.on("--files LIST", "Comma-separated changed files") { |value| options[:files] = value }
+        opts.on("--format FORMAT", "json, text, or shell") { |value| options[:format] = value }
+        opts.on("--only SUITES", "Comma-separated optional QEMU suites") { |value| options[:only] = value }
+        opts.on("--max-profiles N", Integer, "Maximum QEMU profiles") { |value| options[:max_profiles] = value }
+        opts.on("--full", "Run full suites for every affected family") { options[:full] = true }
+        opts.on("--output FILE", "Write output to FILE") { |value| options[:output] = value }
+      end
+      parser.parse!(argv)
+
+      repo = build_repo(options)
+      index = Index.new(repo)
+      changed = changed_files(repo, options)
+      report = Impact.new(index, changed)
+      verification = Verification.new(
+        index,
+        report,
+        max_profiles: options[:max_profiles] || Verification::DEFAULT_MAX_PROFILES,
+        only: options[:only],
+        full: options[:full]
+      )
+      output = case options[:format]
+               when "json" then JSON.pretty_generate(verification.to_h)
+               when "shell" then verification.shell
+               else verification.text
+               end
+      if options[:output]
+        write_file(options[:output], output + "\n")
+      else
+        puts output
+      end
+    end
+
     def check(argv)
       options = { format: "text" }
       parser = OptionParser.new do |opts|
@@ -123,7 +163,7 @@ module ThinginoArch
     def packet(argv)
       options = { format: "markdown" }
       parser = OptionParser.new do |opts|
-        opts.banner = "Usage: thingino-arch packet [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE] [--brief FILE] [--prompt FILE] [--max-cameras N] [--max-diff-bytes N] [--all-findings]"
+        opts.banner = "Usage: thingino-arch packet [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE] [--brief FILE] [--prompt FILE] [--max-cameras N] [--max-qemu-profiles N] [--max-diff-bytes N] [--all-findings]"
         opts.on("--repo PATH", "Thingino firmware checkout") { |value| options[:repo] = value }
         opts.on("--from REF", "Base ref") { |value| options[:from] = value }
         opts.on("--to REF", "Head ref") { |value| options[:to] = value }
@@ -133,6 +173,7 @@ module ThinginoArch
         opts.on("--brief FILE", "Architecture brief") { |value| options[:brief] = value }
         opts.on("--prompt FILE", "Review prompt") { |value| options[:prompt] = value }
         opts.on("--max-cameras N", Integer, "Camera rows to include") { |value| options[:max_cameras] = value }
+        opts.on("--max-qemu-profiles N", Integer, "QEMU profiles to include") { |value| options[:max_qemu_profiles] = value }
         opts.on("--max-diff-bytes N", Integer, "Diff byte cap") { |value| options[:max_diff_bytes] = value }
         opts.on("--baseline FILE", "Baseline findings file") { |value| options[:baseline] = value }
         opts.on("--all-findings", "Include baselined findings and ignore the changed scope") { options[:all_findings] = true }
@@ -143,6 +184,11 @@ module ThinginoArch
       index = Index.new(repo)
       changed = changed_files(repo, options)
       report = Impact.new(index, changed)
+      verification = Verification.new(
+        index,
+        report,
+        max_profiles: options[:max_qemu_profiles] || Verification::DEFAULT_MAX_PROFILES
+      )
       findings = Checks.new(index).run
       unless options[:all_findings]
         baseline = Baseline.load(baseline_path(repo, options[:baseline]))
@@ -155,6 +201,7 @@ module ThinginoArch
       packet = Packet.new(
         index: index,
         impact: report,
+        verification: verification,
         findings: findings,
         brief: brief,
         prompt: prompt,
@@ -292,6 +339,7 @@ module ThinginoArch
         Usage:
           thingino-arch index   [--repo PATH] [--output FILE]
           thingino-arch impact  [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text]
+          thingino-arch verify  [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full]
           thingino-arch check   [--repo PATH] [--from REF] [--to REF] [--files LIST] [--changed] [--baseline FILE] [--write-baseline [FILE]] [--strict]
           thingino-arch packet  [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE]
 

@@ -76,6 +76,7 @@ module FixtureHelper
         BR2_PACKAGE_PLUGIN_DUPE=y
       CONFIG
       write(root, "configs/cameras/testcam/thingino.json", "{}\n")
+      write(root, "configs/cameras-testing/qemu_t31x_ethwifi/qemu-test.json", JSON.generate("soc" => "t31x", "caps" => ["wired", "wifi"], "net" => "tap"))
       write(root, "overlay/etc/init.d/S10foo", "#!/bin/sh\n")
 
       yield ThinginoArch::Repo.new(root), root
@@ -105,6 +106,8 @@ class ThinginoArchTest < Minitest::Test
       assert_equal "t31", camera["soc_family"]
       assert_equal ["gc4653"], camera["sensors"]
       assert_equal ["BR2_PACKAGE_WIFI_OK"], camera["wifi_symbols"]
+      assert_equal "t31", index.qemu_profiles["qemu_t31x_ethwifi"]["family"]
+      assert_includes index.qemu_profiles_by_family["t31"], "qemu_t31x_ethwifi"
       assert_includes camera["selected_packages"], "foo"
       assert_includes camera["selected_packages"], "bar"
       assert_includes camera["selected_packages"], "wifi-ok"
@@ -140,6 +143,20 @@ class ThinginoArchTest < Minitest::Test
       findings = ThinginoArch::Checks.new(ThinginoArch::Index.new(repo)).run
       assert findings.any? { |finding| finding.id == "plugin.duplicate_name" && finding.severity == "error" }
       assert findings.any? { |finding| finding.id == "plugin.duplicate_page" && finding.severity == "error" }
+    end
+  end
+
+  def test_verification_selects_qemu_profile_and_suites
+    with_repo do |repo, _root|
+      index = ThinginoArch::Index.new(repo)
+      impact = ThinginoArch::Impact.new(index, ["package/plugin/files/plugin.webui.json"])
+      plan = ThinginoArch::Verification.new(index, impact, max_profiles: 2)
+      assert_equal ["t31"], plan.families
+      assert_equal ["qemu_t31x_ethwifi"], plan.profiles.map { |profile| profile["profile"] }
+      assert_includes plan.suites.to_a, "webui"
+      assert_includes plan.suites.to_a, "playwright"
+      assert_includes plan.shell, "qemu_t31x_ethwifi"
+      assert_includes plan.shell, "--only health,playwright,services,webui"
     end
   end
 
@@ -186,6 +203,26 @@ class ThinginoArchTest < Minitest::Test
       assert_includes ids, "package.missing_hash"
       refute_includes ids, "package.unreachable_config"
       assert_equal 0, result["summary"]["errors"]
+    end
+  end
+
+  def test_verification_keeps_single_family_change_local
+    with_repo do |repo, _root|
+      index = ThinginoArch::Index.new(repo)
+      impact = ThinginoArch::Impact.new(index, ["soc/ingenic/t31.mk"])
+      plan = ThinginoArch::Verification.new(index, impact, max_profiles: 2)
+      assert_equal ["t31"], plan.families
+      assert_equal ["qemu_t31x_ethwifi"], plan.profiles.map { |profile| profile["profile"] }
+    end
+  end
+
+  def test_verify_cli_emits_shell_plan
+    with_repo do |repo, root|
+      out, = capture_io do
+        ThinginoArch::CLI.new.run(["verify", "--repo", root, "--files", "package/plugin/files/plugin.webui.json", "--format", "shell"])
+      end
+      assert_includes out, "make GROUP=testing CAMERA=qemu_t31x_ethwifi fast"
+      assert_includes out, "--only health,playwright,services,webui"
     end
   end
 

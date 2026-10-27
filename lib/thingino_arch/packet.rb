@@ -2,9 +2,10 @@ require "json"
 
 module ThinginoArch
   class Packet
-    def initialize(index:, impact:, findings:, brief:, prompt:, diff:, diff_stat:, title: nil, max_cameras: 40, max_diff_bytes: 200_000)
+    def initialize(index:, impact:, verification: nil, findings:, brief:, prompt:, diff:, diff_stat:, title: nil, max_cameras: 40, max_diff_bytes: 200_000)
       @index = index
       @impact = impact
+      @verification = verification
       @findings = findings
       @brief = brief
       @prompt = prompt
@@ -41,6 +42,7 @@ module ThinginoArch
 
       lines.concat(affected_cameras_section)
       lines.concat(entities_section)
+      lines.concat(verification_section)
       lines.concat(findings_section)
       lines.concat(relevant_index_section)
       lines.concat(brief_section)
@@ -81,6 +83,24 @@ module ThinginoArch
       interesting.each do |name, values|
         lines << "- **#{name}**: #{values.map { |value| "`#{value}`" }.join(', ')}"
       end
+      lines << ""
+      lines
+    end
+
+    def verification_section
+      return [] unless @verification
+
+      payload = @verification.to_h
+      return [] if payload["profiles"].empty? && payload["skipped"].empty?
+
+      lines = ["### Verification plan", ""]
+      lines << "```"
+      lines << @verification.text
+      lines << "```"
+      lines << ""
+      lines << "```sh"
+      lines << @verification.shell
+      lines << "```"
       lines << ""
       lines
     end

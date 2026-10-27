@@ -11,6 +11,7 @@ Commands:
 
 - `index`
 - `impact`
+- `verify`
 - `check`
 - `packet`
 - `version`
@@ -90,6 +91,8 @@ The index contains:
   points;
 - `wifi.drivers`: registered driver symbols, package, module, interface,
   module name, module options;
+- `qemu_profiles`: test profiles from `configs/cameras-testing/*/qemu-test.json`
+  with SoC, family, capabilities, network backend, and manifest path;
 - `soc.models` and `soc.families`: model-to-family mapping, family file,
   architecture, models;
 - `kernels`: vendor kernel maps;
@@ -100,7 +103,8 @@ The index contains:
 - `init_scripts`: path, package, basename, START/STOP/PROVIDES/REQUIRES/USE;
 - `plugins`: manifest path, package, name, label, API version, pages, CGI
   endpoints, feature flags, parse errors;
-- `reverse`: cameras by package, family, vendor, fragment, and WiFi symbol;
+- `reverse`: cameras by package, family, vendor, fragment, and WiFi symbol,
+  plus QEMU profiles by family;
 - `profiles_without_defconfig`, `stats`, `head`, `generated_at`.
 
 Examples:
@@ -175,6 +179,77 @@ bin/thingino-arch impact \
   --repo ../firmware/master \
   --from origin/master --to HEAD \
   --format json
+```
+
+## verify
+
+Builds a QEMU verification plan from the change impact.
+
+```sh
+bin/thingino-arch verify \
+  --repo PATH \
+  [--from REF] [--to REF] \
+  [--files LIST] \
+  [--format json|text|shell] \
+  [--only SUITES] \
+  [--max-profiles N] \
+  [--full] \
+  [--output FILE]
+```
+
+Options:
+
+| Option | Description |
+| --- | --- |
+| `--repo PATH` | Firmware checkout |
+| `--from REF` | Base ref; default `HEAD~1` |
+| `--to REF` | Head ref; default `HEAD` |
+| `--files LIST` | Comma-separated changed files, instead of a Git range |
+| `--format json\|text\|shell` | Output format; default `text` |
+| `--only SUITES` | Override the optional QEMU suite list |
+| `--max-profiles N` | Maximum profiles across families; default 4 |
+| `--full` | Use all affected families and run full suites |
+| `--output FILE` | Write the plan to a file |
+
+The plan selects QEMU profiles from `configs/cameras-testing/*/qemu-test.json`
+by affected SoC family, then chooses capabilities for the change:
+
+- WebUI/plugin changes prefer wired profiles and `webui`, `playwright`,
+  `services`, and `health`;
+- WiFi changes prefer WiFi-capable profiles and `linkflap`, `health`;
+- ONVIF/streamer changes prefer wired profiles and `onvif`, `webui`,
+  `services`, `health`;
+- USB changes prefer `usb_direct` or `usb_direct_client` profiles;
+- network/init changes prefer wired profiles and `dns`, `ipv6`, `services`,
+  `linkflap`, `health`;
+- overlay/sysupgrade/persistence changes add `persist` and `--reboot-test`.
+
+Broad changes, including `impact.global` and changes affecting at least half
+of the camera profiles, use T31 and T41 as representative families. Use
+`--full` to plan every affected family instead.
+
+The plan contains, per profile:
+
+- the `make` build command;
+- the `scripts/qemu-test/run.sh` command;
+- the selected optional suites and any flags;
+- whether the backend requires `sudo` and `/dev/net/tun`.
+
+`--format shell` emits the commands directly. The QEMU workflow executes that
+output. `verify` does not build or boot anything itself.
+
+Example:
+
+```sh
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --from origin/master --to HEAD \
+  --max-profiles 2
+
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --files package/thingino-webui/files/www/x/reboot.cgi \
+  --format shell
 ```
 
 ## check
@@ -303,6 +378,7 @@ Options:
 | `--brief FILE` | Architecture brief; default `architecture/thingino.md` |
 | `--prompt FILE` | Review instructions; default `prompts/architecture-review.md` |
 | `--max-cameras N` | Camera rows and camera index entries; default 40 |
+| `--max-qemu-profiles N` | QEMU profiles in the verification plan; default 4 |
 | `--max-diff-bytes N` | Diff cap; default 200000 |
 | `--all-findings` | Include baselined findings and ignore the changed scope |
 | `--output FILE` | Write the packet to a file instead of stdout |
@@ -314,11 +390,12 @@ Packet contents:
 3. affected camera table;
 4. affected entities;
 5. deterministic findings after baseline and changed-scope filtering;
-6. relevant index slices: packages, camera profiles, WebUI plugins, init
+6. QEMU verification plan with build and run commands;
+7. relevant index slices: packages, camera profiles, WebUI plugins, init
    scripts, WiFi drivers, SoC families, fragments;
-7. architecture brief;
-8. review instructions;
-9. unified diff, truncated at the byte cap.
+8. architecture brief;
+9. review instructions;
+10. unified diff, truncated at the byte cap.
 
 `--all-findings` is for debugging the tool or the baseline. Normal reviews
 should use the baseline-filtered packet.

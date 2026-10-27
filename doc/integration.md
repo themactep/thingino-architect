@@ -38,6 +38,7 @@ workflow.
 | `--repo PATH` | Firmware checkout; default `$THINGINO_REPO` or `../firmware/master` |
 | `--tool PATH` | `thingino-arch` source directory; default the script directory |
 | `--with-ocr` | Also install the optional OCR workflow |
+| `--with-qemu` | Also install the optional QEMU verification workflow |
 | `--refresh-baseline` | Regenerate `tools/thingino-arch/baseline.json` |
 | `--force` | Replace an existing workflow file that differs from the source |
 | `--dry-run` | Print actions without changing anything |
@@ -48,6 +49,7 @@ Examples:
 ```sh
 ./integrate.sh --repo ../firmware/master --dry-run
 ./integrate.sh --repo ../firmware/master --with-ocr
+./integrate.sh --repo ../firmware/master --with-qemu
 ./integrate.sh --repo ../firmware/master --refresh-baseline
 ./integrate.sh --repo ../firmware/master --force
 ```
@@ -59,6 +61,7 @@ Examples:
   .github/workflows/
     architecture-check.yml
     ocr-architecture-review.yml        # with --with-ocr
+    qemu-check.yml                     # with --with-qemu
   tools/thingino-arch/
     bin/thingino-arch
     lib/thingino_arch/...
@@ -140,7 +143,8 @@ You have local edits in the installed workflow. Either:
 ./integrate.sh --repo ../firmware/master --force
 ```
 
-The same applies to the OCR workflow when `--with-ocr` is used.
+The same applies to the OCR workflow with `--with-ocr` and the QEMU workflow
+with `--with-qemu`.
 
 ## Dry run
 
@@ -173,6 +177,7 @@ Remove the installed directories and workflows:
 rm -rf <repo>/tools/thingino-arch
 rm -f <repo>/.github/workflows/architecture-check.yml
 rm -f <repo>/.github/workflows/ocr-architecture-review.yml
+rm -f <repo>/.github/workflows/qemu-check.yml
 ```
 
 If the baseline was committed, remove it with the tool directory. No firmware

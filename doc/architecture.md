@@ -30,13 +30,14 @@ bin/thingino-arch
        -> repo.rb      filesystem and Git access
        -> index.rb     source-of-truth parsing and graph construction
        -> impact.rb    changed-file -> entity -> camera closure
+       -> verification.rb QEMU profile and suite selection
        -> checks.rb    deterministic invariants and baseline
        -> packet.rb    Markdown review context
 ```
 
 `lib/thingino_arch.rb` requires the modules and defines the version. The tool
 uses only the Ruby standard library: `json`, `set`, `open3`, `pathname`,
-`optparse`, `fileutils`, `digest`, and `time`.
+`optparse`, `fileutils`, `digest`, `shellwords`, and `time`.
 
 ## Data flow
 
@@ -49,6 +50,9 @@ Git diff / file list
         |             |           v
         |             |        Baseline
         v             v
+   Verification ---> QEMU
+        |
+        v
       Packet  <--------+
         |
         v
@@ -56,7 +60,8 @@ Git diff / file list
 ```
 
 `index` is the expensive parse. `impact` and `checks` consume the same
-in-memory index. `packet` combines all three and adds the architecture brief,
+in-memory index. `verification` maps the impact to QEMU profiles and suites.
+`packet` combines the index, impact, verification, checks, architecture brief,
 review prompt, and diff.
 
 ## Repo
@@ -86,10 +91,11 @@ once with a `./` segment and once without it.
 7. `parse_soc`
 8. `parse_kernels`
 9. `parse_fragments`
-10. `parse_cameras`
-11. `parse_init_scripts`
-12. `parse_plugins`
-13. `attach_reverse_maps`
+10. `parse_qemu_profiles`
+11. `parse_cameras`
+12. `parse_init_scripts`
+13. `parse_plugins`
+14. `attach_reverse_maps`
 
 The order matters: cameras need symbols, main symbols, WiFi drivers, SoC
 models, and fragments before they can resolve their effective configuration.
@@ -248,6 +254,20 @@ WebUI plugins are read from `package/*/**/*.webui.json`. The parser records
 name, label, API version, pages, CGI endpoints, feature flags, and parse
 errors.
 
+### QEMU profiles
+
+QEMU test profiles are read from
+`configs/cameras-testing/*/qemu-test.json`. Each profile records:
+
+- `soc` and the resolved SoC family and vendor;
+- `caps`, such as `wired`, `wifi`, `usb_direct`, or `usb_direct_client`;
+- the default network backend, such as `tap`, `slirp`, or `slip`;
+- the manifest path and parse error, if any.
+
+The reverse map `qemu_profiles_by_family` connects affected SoC families to
+available verification targets. Families with a QEMU machine but no test
+profile are reported as skipped by `verify`.
+
 ### Reverse maps
 
 After camera parsing, the index builds:
@@ -322,6 +342,22 @@ Baseline handling:
 The baseline is a snapshot, not a policy. Regenerate it only after reviewing
 the findings and intentionally fixing or accepting them.
 
+## Verification
+
+`Verification` consumes the index and impact report and produces a QEMU plan:
+
+- affected families come from affected camera profiles and direct SoC changes;
+- broad changes use T31 and T41 as representative families unless `--full` is
+  set;
+- one profile is chosen per selected family, preferring capabilities required
+  by the change and then the richer profile/backend;
+- optional suites are selected from changed paths and packages;
+- the plan records build and run commands, required privileges, skipped
+  families, and notes.
+
+The class does not execute the plan. `verify --format shell` writes the
+commands; the QEMU workflow runs them on a self-hosted runner.
+
 ## Packet
 
 `Packet` renders Markdown. It includes:
@@ -330,6 +366,7 @@ the findings and intentionally fixing or accepting them.
 - diff stat;
 - impact summary and camera table;
 - affected entities;
+- QEMU verification plan with build and run commands;
 - deterministic findings, capped at 80 rows in the packet;
 - index slices for affected packages, cameras, plugins, init scripts, WiFi
   drivers, SoC families, and fragments;
@@ -356,6 +393,13 @@ A missed affected profile is worse than a noisy impact list. When the graph is
 ambiguous, the tool prefers to include more cameras and let the reviewer
 narrow it with evidence.
 
+### QEMU is the runtime oracle
+
+QEMU boots the same image that would be flashed and exercises boot, services,
+networking, WebUI, ONVIF, USB, GPIO, and emulated sensors. It is the verification
+executor; the static index selects what to test. A green QEMU run narrows the
+remaining risk to real hardware, RF, power, thermal, and unmodeled peripherals.
+
 ### Deterministic checks in scripts
 
 The LLM is not asked to decide whether a package is sourced, whether a WiFi
@@ -381,7 +425,10 @@ instead.
 - Conditional Kconfig defaults and dependencies are approximated.
 - Camera selection is computed from main symbols, not a full Kconfig run.
 - Impact is path-based and conservative.
-- The tool does not build firmware or run hardware tests.
+- The tool itself does not build or boot the image; `verify` emits a plan and
+the QEMU workflow executes it.
+- QEMU covers emulated Ingenic behavior, not real hardware, RF, power, thermal,
+  or unmodeled peripherals.
 - Patch content is reviewed as text; the patched source is not present.
 - Cross-repo impact requires the component checkouts.
 - The OCR review is per-group and constrained to the files in the group.

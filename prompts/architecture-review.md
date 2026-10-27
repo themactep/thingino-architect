@@ -13,6 +13,7 @@ You receive:
 - the affected packages, camera profiles, SoC families, fragments, plugins, and
   init scripts;
 - the relevant architecture index entries;
+- the QEMU verification plan for the affected families;
 - deterministic structural findings already produced by `thingino-arch`;
 - the architecture brief.
 
@@ -32,8 +33,10 @@ repository to verify cross-file and cross-layer claims.
 5. Check cross-repo impact when a pinned component is involved. If the other
    repository is not available, mark it as verification needed, not as a
    finding.
-6. Separate confirmed findings from items that need a build, runtime test, or
-   hardware check.
+6. Use the QEMU verification plan as the runtime test set. Treat its checks as
+   evidence, not as an architecture decision.
+7. Separate confirmed findings from items that need a real-hardware, RF, power,
+   thermal, or unmodeled-peripheral check.
 7. Do not repeat a deterministic finding as a prose finding. If it matters,
    reference it.
 

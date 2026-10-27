@@ -210,7 +210,19 @@ The reviewer must not invent hardware behavior. It may say "verify on T41
 hardware" or "build this profile", but it must not claim a pin, sensor, or
 boot behavior is correct without evidence in the tree.
 
-## 9. Cross-repo context
+## 9. Runtime verification
+
+Thingino has a QEMU test suite that boots the same firmware image and exercises
+boot, services, networking, WiFi portal, WebUI, ONVIF, USB, GPIO, and emulated
+sensors on supported Ingenic SoCs. Use the review packet's verification plan
+to identify the profiles and suites for the affected families.
+
+QEMU is runtime evidence, not an architecture decision. A green run narrows the
+remaining risk to real hardware, RF, power, thermal, and unmodeled peripherals.
+If the plan says a family has no QEMU profile, or the change needs hardware
+behavior that the suite does not model, report it as verification needed.
+
+## 10. Cross-repo context
 
 The firmware tree pins component sources rather than vendoring them. A
 firmware change may require a matching change in `prudynt-t`, `open-tx-isp`,
@@ -221,7 +233,7 @@ If those repositories are not available in the review workspace, treat
 cross-repo impact as unverified and list it under verification needed. Do not
 assume the pinned component already has the new API, symbol, or configuration.
 
-## 10. Output contract
+## 11. Output contract
 
 For each finding, report:
 

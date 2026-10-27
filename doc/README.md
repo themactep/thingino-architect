@@ -55,6 +55,17 @@ WiFi driver, init script, or plugin produces a different affected set.
 Impact is intentionally conservative. A broad change can list many profiles;
 that is better than missing a profile that builds the changed component.
 
+### Verification
+
+Verification maps the affected families to QEMU test profiles and selects the
+optional suites that match the changed layers. The `verify` command emits a
+build and run plan; the QEMU workflow executes it on a self-hosted Ingenic
+runner.
+
+QEMU boots the real firmware image and exercises boot, services, networking,
+WebUI, ONVIF, USB, GPIO, and emulated sensors. It does not replace real-hardware
+validation.
+
 ### Structural checks
 
 The checks cover invariants that a script can decide exactly: unreachable
@@ -97,7 +108,9 @@ rules lack.
 Thingino checkout
       |
       v
-   Index  ---> Impact ---> Packet ---> reviewer / OCR
+   Index  ---> Impact ---> Verification ---> QEMU
+      |            |              |
+      |            +----> Packet --+
       |                       ^
       +-----> Checks ---------+
                  |
@@ -124,8 +137,9 @@ Out of scope:
 
 - formatting and style;
 - shellcheck, shfmt, Prettier, or defconfig sorting;
-- building firmware or running QEMU;
-- hardware validation;
+- building or booting the image from inside `thingino-arch` itself; the verify
+  plan and QEMU workflow execute those steps;
+- real-hardware validation;
 - replacing human review;
 - automatically rewriting the change.
 
@@ -143,6 +157,11 @@ bin/thingino-arch check \
   --from origin/master --to HEAD \
   --changed --baseline baseline.json
 
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --from origin/master --to HEAD \
+  --max-profiles 2
+
 bin/thingino-arch packet \
   --repo ../firmware/master \
   --from origin/master --to HEAD \
@@ -159,6 +178,8 @@ list, use `--files path/a,path/b` with `impact` or `check --changed`.
 - Ruby 3.3 or newer for the tool and tests;
 - Git 2.41 or newer for range-based review;
 - `open-code-review` 1.13.3 or newer only for the OCR path;
+- Python 3, QEMU, `dnsmasq`, `tcpdump`, and Node/Playwright only for the QEMU
+  verification workflow;
 - no external Ruby gems.
 
 The deterministic workflow uses a standard GitHub-hosted runner with Ruby

@@ -76,7 +76,9 @@ authority.
 | `arch-packet.md` | Full architecture review packet |
 
 The packet can be downloaded from the workflow run and given to an agent. It
-is not posted as a PR comment.
+is not posted as a PR comment. It includes the QEMU verification plan, but the
+deterministic job does not build or boot the image; use the QEMU workflow for
+execution.
 
 ### Failure semantics
 
@@ -166,6 +168,80 @@ preserves its own artifacts for debugging.
 
 See [ocr.md](ocr.md) for the rule pack and evaluation method.
 
+## QEMU verification workflow
+
+`ci/qemu-check.yml` runs the QEMU plan from `thingino-arch verify`.
+
+### Trigger
+
+Manual dispatch with:
+
+- `base_ref`;
+- `head_sha`;
+- `max_profiles`;
+- optional `only` suites.
+
+It is not triggered on every PR by default. QEMU verification is heavier than
+the deterministic job and needs a runner with the emulator, build toolchain,
+network lab, and browser dependencies.
+
+### Runner
+
+The template uses:
+
+```yaml
+runs-on: [self-hosted, linux, thingino-qemu]
+```
+
+The runner needs:
+
+- the Thingino build toolchain and enough disk for profile builds;
+- the pinned Ingenic QEMU binary, or network access to fetch it;
+- `python3`, `dnsmasq`, `tcpdump`, `node`/`npm`, and Playwright Chromium;
+- passwordless `sudo` for tap/slip runs;
+- `/dev/net/tun`;
+- enough CPU and time for TCG boots.
+
+Do not use a public GitHub-hosted runner unless you have validated the tap/slip
+and Playwright setup.
+
+### Permissions
+
+```yaml
+permissions:
+  contents: read
+```
+
+The job writes artifacts and a job summary, not PR comments.
+
+### Steps
+
+1. Check out the requested head SHA with full history.
+2. Fetch the base branch.
+3. Set up Ruby.
+4. Run `thingino-arch verify --format shell` into `qemu-plan.sh`.
+5. Skip if the plan has no profiles.
+6. Run `bash qemu-plan.sh`.
+7. Publish the plan and upload `qemu-reports/`.
+
+### Coverage
+
+The plan covers the affected SoC families, not every camera profile. Broad
+changes use T31 and T41 by default. `--full` selects every affected family.
+
+The QEMU suite boots the real image and covers boot/services, network,
+WiFi portal, WebUI, ONVIF, USB, GPIO, and emulated sensors. It does not cover
+real hardware, RF, power, thermal, or unmodeled peripherals.
+
+### Cost and flakiness
+
+- Build only the selected profiles.
+- Cache the base image and the QEMU binary on the runner.
+- Start with `max_profiles=1` or `2` for a pilot.
+- Treat Playwright and lab-heavy suites as the flakiest; keep them advisory
+  until the check list is stable.
+- Use the stable QEMU check names for regression comparisons.
+
 ## Setup
 
 ### 1. Install the tool
@@ -208,7 +284,16 @@ simpler vendored model and relies on review controls.
 Then configure the secrets and variables, and trigger it manually for a test
 PR.
 
-### 5. Decide on automatic review
+### 5. Enable QEMU verification
+
+```sh
+./integrate.sh --repo ../firmware/master --with-qemu
+```
+
+Register a self-hosted runner with the `thingino-qemu` label, then run the
+workflow manually against a test commit.
+
+### 6. Decide on automatic review
 
 Do not enable automatic OCR review until the evaluation in [ocr.md](ocr.md)
 shows acceptable precision and noise. The deterministic workflow can be

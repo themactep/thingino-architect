@@ -1,3 +1,4 @@
 out/
 .thingino-arch/
+qemu-reports/
 *.log

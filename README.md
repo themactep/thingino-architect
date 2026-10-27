@@ -22,6 +22,7 @@ harness; this tool supplies the architecture context and the checks it lacks.
 - **Index** the source of truth: packages, Kconfig, WiFi driver matrix, SoC
   and kernel maps, camera profiles, fragments, init scripts, WebUI plugins.
 - **Impact** a change: map changed files to entities and camera profiles.
+- **Verify** a change: choose QEMU test profiles and suites for the affected families.
 - **Check** structural invariants: unreachable Kconfig, missing hashes,
   unregistered WiFi drivers, incomplete camera profiles, conflicting plugins
   or init scripts, undefined symbols, SoC model conflicts.
@@ -44,6 +45,11 @@ bin/thingino-arch check \
   --repo ../firmware/master \
   --from origin/master --to HEAD \
   --changed --baseline baseline.json
+
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --from origin/master --to HEAD \
+  --max-profiles 2
 
 bin/thingino-arch packet \
   --repo ../firmware/master \
@@ -70,6 +76,7 @@ Optional flags:
 
 ```sh
 ./integrate.sh --repo ../firmware/master --with-ocr
+./integrate.sh --repo ../firmware/master --with-qemu
 ./integrate.sh --repo ../firmware/master --refresh-baseline
 ./integrate.sh --repo ../firmware/master --dry-run
 ./integrate.sh --repo ../firmware/master --force
@@ -112,6 +119,7 @@ rules/thingino-review.json     OCR rule pack
 prompts/architecture-review.md architecture review prompt
 ci/architecture-check.yml      deterministic PR workflow
 ci/ocr-review.yml              optional OCR workflow
+ci/qemu-check.yml              optional self-hosted QEMU workflow
 baseline.json                  reference baseline
 test/                          Minitest fixture suite
 doc/                           documentation
@@ -157,6 +165,7 @@ ruby -ryaml -e 'ARGV.each { |f| YAML.parse_file(f) }' ci/*.yml
 - The LLM is for judgment across files, layers, and repositories.
 - Every finding needs evidence.
 - Impact is conservative; a missed profile is worse than a broad list.
+- QEMU is the runtime oracle; the static index decides what to test.
 - Do not fork `open-code-review`; use its rules, background, tools, delegation
   mode, and GitHub Action.
 - The model does not need to be fine-tuned; it needs the current index,
@@ -169,7 +178,8 @@ MIT. See [LICENSE](LICENSE).
 ## Limitations
 
 - Static Kconfig approximation, not a full Kconfig evaluation.
-- No firmware build, QEMU, hardware, or cross-repo verification.
+- QEMU covers emulated Ingenic behavior; it does not replace real-hardware validation.
+- No cross-repo source verification; QEMU verifies the integrated image.
 - Patch review is textual; the patched source is not present.
 - OCR review is per-group and does not replace human review.
 - The LLM is not authoritative on hardware behavior.

@@ -22,6 +22,7 @@ lib/thingino_arch.rb           requires the modules
 lib/thingino_arch/repo.rb      filesystem and Git access
 lib/thingino_arch/index.rb     source-of-truth parsers and graph
 lib/thingino_arch/impact.rb    changed-file impact
+lib/thingino_arch/verification.rb QEMU profile and suite selection
 lib/thingino_arch/checks.rb    invariants and baseline
 lib/thingino_arch/packet.rb    review packet
 lib/thingino_arch/cli.rb       command dispatch
@@ -30,6 +31,7 @@ rules/thingino-review.json     OCR rule pack
 prompts/architecture-review.md architecture review prompt
 ci/architecture-check.yml      deterministic PR workflow
 ci/ocr-review.yml              optional OCR workflow
+ci/qemu-check.yml              optional self-hosted QEMU workflow
 baseline.json                  reference baseline
 test/thingino_arch_test.rb     Minitest suite
 doc/                           this documentation
@@ -50,6 +52,8 @@ test. It covers:
 - unknown SoC models;
 - plugin conflicts for co-selected packages;
 - impact mapping from packages and unreferenced fragments;
+- QEMU profile selection and suite selection;
+- the `verify` shell plan through the CLI;
 - baseline suppression;
 - changed-scope filtering through the CLI;
 - OCR rule ordering.
@@ -165,6 +169,33 @@ findings will reappear. That is expected when the check semantics change.
 
 Rule text should describe a checklist, not an essay. It must tell the model to
 ignore style and deterministic findings that CI already covers.
+
+## Adding a QEMU profile or suite mapping
+
+QEMU profiles come from `configs/cameras-testing/*/qemu-test.json` in the
+firmware tree; the tool indexes them automatically.
+
+When the firmware adds a profile or a suite changes capability requirements:
+
+1. add or update the profile in the firmware tree;
+2. verify the index sees the profile:
+
+   ```sh
+   bin/thingino-arch index --repo ../firmware/master --output /tmp/index.json
+   ruby -rjson -e 'p JSON.parse(File.read("/tmp/index.json"))["qemu_profiles"]'
+   ```
+
+3. check the plan for the affected family:
+
+   ```sh
+   bin/thingino-arch verify --repo ../firmware/master \
+     --files path/to/changed/file --format text
+   ```
+
+4. update `Verification` when a new capability or suite needs a selection
+   rule;
+5. add a fixture profile and a test assertion;
+6. update [ci.md](ci.md) if the runner requirements change.
 
 ## Changing the architecture brief
 

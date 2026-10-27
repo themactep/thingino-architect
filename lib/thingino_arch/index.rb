@@ -8,7 +8,8 @@ module ThinginoArch
                 :kernels, :fragments, :cameras, :init_scripts, :plugins, :choices,
                 :cameras_by_package, :cameras_by_family, :cameras_by_vendor,
                 :cameras_by_fragment, :cameras_by_wifi, :init_by_basename,
-                :profiles_without_defconfig, :reachable_config_files
+                :profiles_without_defconfig, :reachable_config_files,
+                :qemu_profiles, :qemu_profiles_by_family
 
     def initialize(repo)
       @repo = repo
@@ -34,6 +35,8 @@ module ThinginoArch
       @init_by_basename = Hash.new { |hash, key| hash[key] = [] }
       @profiles_without_defconfig = []
       @reachable_config_files = Set.new
+      @qemu_profiles = {}
+      @qemu_profiles_by_family = Hash.new { |hash, key| hash[key] = [] }
       build
     end
 
@@ -47,6 +50,7 @@ module ThinginoArch
       parse_soc
       parse_kernels
       parse_fragments
+      parse_qemu_profiles
       parse_cameras
       parse_init_scripts
       parse_plugins
@@ -76,6 +80,7 @@ module ThinginoArch
         },
         "kernels" => kernels,
         "fragments" => fragments,
+        "qemu_profiles" => qemu_profiles,
         "cameras" => cameras,
         "init_scripts" => init_scripts,
         "plugins" => plugins,
@@ -84,7 +89,8 @@ module ThinginoArch
           "cameras_by_family" => cameras_by_family,
           "cameras_by_vendor" => cameras_by_vendor,
           "cameras_by_fragment" => cameras_by_fragment,
-          "cameras_by_wifi" => cameras_by_wifi
+          "cameras_by_wifi" => cameras_by_wifi,
+          "qemu_profiles_by_family" => qemu_profiles_by_family
         },
         "profiles_without_defconfig" => profiles_without_defconfig,
         "stats" => {
@@ -95,7 +101,8 @@ module ThinginoArch
           "cameras" => cameras.size,
           "fragments" => fragments.size,
           "init_scripts" => init_scripts.size,
-          "plugins" => plugins.size
+          "plugins" => plugins.size,
+          "qemu_profiles" => qemu_profiles.size
         }
       }
     end
@@ -339,6 +346,28 @@ module ThinginoArch
       end
     end
 
+    def parse_qemu_profiles
+      repo.glob("configs/cameras-testing/*/qemu-test.json").each do |absolute|
+        relative = repo.relative(absolute)
+        directory = File.dirname(relative)
+        name = File.basename(directory)
+        manifest = parse_json(repo.read(relative))
+        soc_model = manifest["soc"]
+        soc = soc_models[soc_model]
+        qemu_profiles[name] = {
+          "name" => name,
+          "dir" => directory,
+          "manifest" => relative,
+          "soc" => soc_model,
+          "family" => soc && soc["family"],
+          "vendor" => soc && soc["vendor"],
+          "caps" => Array(manifest["caps"]),
+          "net" => manifest["net"],
+          "error" => manifest["__error"]
+        }
+      end
+    end
+
     def parse_cameras
       camera_defconfigs.each do |absolute|
         relative = repo.relative(absolute)
@@ -443,6 +472,9 @@ module ThinginoArch
         cameras_by_vendor[camera["soc_vendor"]] << camera["id"] if camera["soc_vendor"]
         camera["fragments"].each { |fragment| cameras_by_fragment[fragment] << camera["id"] }
         camera["wifi_symbols"].each { |symbol| cameras_by_wifi[symbol] << camera["id"] }
+      end
+      qemu_profiles.each_value do |profile|
+        qemu_profiles_by_family[profile["family"]] << profile["name"] if profile["family"]
       end
     end
 

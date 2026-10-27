@@ -250,6 +250,69 @@ If checkout time becomes a problem, implement a targeted fetch of the base and
 PR SHAs while keeping the baseline extraction. Do not switch to a shallow
 checkout that breaks `git diff base..head`.
 
+## QEMU verification plan has no profiles
+
+Causes:
+
+- the change is documentation/tooling only;
+- no affected camera family has a QEMU test profile;
+- the plan was capped by `--max-profiles`;
+- the changed package is not selected by any camera.
+
+Run `verify` with `--format text` and read the skipped-family reasons. Add a
+`configs/cameras-testing/<profile>/qemu-test.json` profile for a missing family,
+or use `--full` to include all affected families.
+
+## A QEMU profile is skipped or uses a fallback
+
+`verify` prefers a profile with the capabilities the change needs. If a
+family has no wired profile, for example, it may fall back to a WiFi-only
+profile and note that the required suite will be skipped.
+
+The note names the fallback. Add or adjust a profile if that coverage matters.
+
+## QEMU run needs sudo or fails to open a tap device
+
+Profiles with `"net": "tap"` or `"net": "slip"` need root and `/dev/net/tun`.
+`run.sh` re-execs under `sudo`. On a CI runner, configure passwordless sudo and
+the tun device. Use a slirp or USB profile when a lab backend is not available.
+
+## QEMU cannot find the image or QEMU binary
+
+`run.sh` expects the newest image for the profile under `output/` and the QEMU
+binary pinned by `package/qemu-ingenic`. Build first:
+
+```sh
+make GROUP=testing CAMERA=qemu_t31x_eth fast
+scripts/qemu-test/run.sh qemu_t31x_eth
+```
+
+The QEMU binary is downloaded and hash-checked on first use. Offline runners
+need it pre-populated in the cache or provided with `QEMU_BIN`.
+
+## QEMU reports a failure that is not related to the change
+
+- Check the base branch with the same profile and suite.
+- Use stable check names to compare runs.
+- Lab and Playwright suites are more sensitive to host load and timing.
+- Start with `max_profiles=1` and the required suites, then expand.
+- A pre-existing failure should be recorded explicitly, not hidden by
+  reducing the plan.
+
+## QEMU build takes too long
+
+- Reduce `--max-profiles`.
+- Use a single representative family for broad changes.
+- Cache toolchain downloads and the QEMU binary.
+- Keep `qemu-reports/` artifacts small by uploading only the needed profiles.
+- Run QEMU on a self-hosted runner close to the build cache.
+
+## T33, C100, or CW080 has no QEMU plan
+
+The QEMU fork has machines for these SoCs, but the firmware tree may not have a
+`configs/cameras-testing` profile for them yet. Add the profile and a
+`qemu-test.json` first; the tool indexes it automatically.
+
 ## Where to look next
 
 - [cli.md](cli.md) for command options and exit codes

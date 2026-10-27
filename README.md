@@ -162,6 +162,10 @@ ruby -ryaml -e 'ARGV.each { |f| YAML.parse_file(f) }' ci/*.yml
 - The model does not need to be fine-tuned; it needs the current index,
   architecture brief, and repository tools.
 
+## License
+
+MIT. See [LICENSE](LICENSE).
+
 ## Limitations
 
 - Static Kconfig approximation, not a full Kconfig evaluation.

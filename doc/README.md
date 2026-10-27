@@ -59,8 +59,8 @@ that is better than missing a profile that builds the changed component.
 
 Verification maps the affected families to QEMU test profiles and selects the
 optional suites that match the changed layers. The `verify` command emits a
-build and run plan; the QEMU workflow executes it on a self-hosted Ingenic
-runner.
+build and run plan or dispatches the firmware repository's native
+`qemu-test.yaml` workflow.
 
 QEMU boots the real firmware image and exercises boot, services, networking,
 WebUI, ONVIF, USB, GPIO, and emulated sensors. It does not replace real-hardware
@@ -138,7 +138,7 @@ Out of scope:
 - formatting and style;
 - shellcheck, shfmt, Prettier, or defconfig sorting;
 - building or booting the image from inside `thingino-arch` itself; the verify
-  plan and QEMU workflow execute those steps;
+  plan and native QEMU workflow execute those steps;
 - real-hardware validation;
 - replacing human review;
 - automatically rewriting the change.

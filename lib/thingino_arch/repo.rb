@@ -69,5 +69,13 @@ module ThinginoArch
     def diff_stat(from, to)
       git("diff", "--stat", "--no-ext-diff", "--no-color", "#{from}..#{to}")
     end
+
+    def github_slug
+      url = git("remote", "get-url", "origin").strip
+      match = url.match(%r{github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?/?\z})
+      match ? "#{match[1]}/#{match[2]}" : nil
+    rescue StandardError
+      nil
+    end
   end
 end

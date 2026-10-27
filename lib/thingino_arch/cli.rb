@@ -1,5 +1,6 @@
 require "fileutils"
 require "json"
+require "open3"
 require "optparse"
 require "set"
 
@@ -84,7 +85,7 @@ module ThinginoArch
     def verify(argv)
       options = { format: "text" }
       parser = OptionParser.new do |opts|
-        opts.banner = "Usage: thingino-arch verify [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full] [--output FILE]"
+        opts.banner = "Usage: thingino-arch verify [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full] [--dispatch] [--ref REF] [--runner-arch ARCH] [--github-repo OWNER/REPO] [--workflow FILE] [--output FILE]"
         opts.on("--repo PATH", "Thingino firmware checkout") { |value| options[:repo] = value }
         opts.on("--from REF", "Base ref") { |value| options[:from] = value }
         opts.on("--to REF", "Head ref") { |value| options[:to] = value }
@@ -93,9 +94,19 @@ module ThinginoArch
         opts.on("--only SUITES", "Comma-separated optional QEMU suites") { |value| options[:only] = value }
         opts.on("--max-profiles N", Integer, "Maximum QEMU profiles") { |value| options[:max_profiles] = value }
         opts.on("--full", "Run full suites for every affected family") { options[:full] = true }
+        opts.on("--dispatch", "Dispatch the native qemu-test workflow") { options[:dispatch] = true }
+        opts.on("--ref REF", "Branch or tag to dispatch on") { |value| options[:ref] = value }
+        opts.on("--runner-arch ARCH", "QEMU workflow build architecture") { |value| options[:runner_arch] = value }
+        opts.on("--github-repo OWNER/REPO", "GitHub repository override") { |value| options[:github_repo] = value }
+        opts.on("--workflow FILE", "Workflow file to dispatch") { |value| options[:workflow] = value }
         opts.on("--output FILE", "Write output to FILE") { |value| options[:output] = value }
       end
       parser.parse!(argv)
+
+      if options[:dispatch] && options[:only].to_s.split(",").map(&:strip).reject(&:empty?).any?
+        warn "--dispatch uses the native qemu-test workflow, which does not accept --only"
+        return 2
+      end
 
       repo = build_repo(options)
       index = Index.new(repo)
@@ -108,6 +119,11 @@ module ThinginoArch
         only: options[:only],
         full: options[:full]
       )
+
+      if options[:dispatch]
+        return dispatch_verification(repo, verification, options)
+      end
+
       output = case options[:format]
                when "json" then JSON.pretty_generate(verification.to_h)
                when "shell" then verification.shell
@@ -118,6 +134,54 @@ module ThinginoArch
       else
         puts output
       end
+    end
+
+    def dispatch_verification(repo, verification, options)
+      if verification.profiles.empty?
+        warn "no QEMU profiles selected; nothing to dispatch"
+        return 1
+      end
+
+      slug = options[:github_repo] || repo.github_slug
+      unless slug
+        warn "cannot determine GitHub repository; pass --github-repo OWNER/REPO"
+        return 1
+      end
+
+      ref = options[:ref]
+      unless ref
+        current = repo.git("rev-parse", "--abbrev-ref", "HEAD").strip
+        ref = current unless current == "HEAD"
+      end
+      unless ref
+        warn "a branch ref is required; pass --ref BRANCH"
+        return 1
+      end
+
+      runner_arch = options[:runner_arch] || "x86_64"
+      workflow = options[:workflow] || "qemu-test.yaml"
+      command = verification.dispatch_command(
+        repo_slug: slug,
+        ref: ref,
+        runner_arch: runner_arch,
+        workflow: workflow
+      )
+
+      stdout, stderr, status = Open3.capture3(*command)
+      unless status.success?
+        warn stderr.strip
+        return 1
+      end
+
+      puts stdout unless stdout.strip.empty?
+      puts "Dispatched #{workflow} on #{slug}@#{ref}"
+      puts "Profiles: #{verification.profiles.map { |profile| profile['profile'] }.join(' ')}"
+      puts "Runner arch: #{runner_arch}"
+      puts "The native workflow runs the full QEMU suite; suite selection is not supported in dispatch mode."
+      0
+    rescue Errno::ENOENT
+      warn "gh is required to dispatch the native QEMU workflow"
+      1
     end
 
     def check(argv)
@@ -339,7 +403,7 @@ module ThinginoArch
         Usage:
           thingino-arch index   [--repo PATH] [--output FILE]
           thingino-arch impact  [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text]
-          thingino-arch verify  [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full]
+          thingino-arch verify  [--repo PATH] [--from REF] [--to REF] [--files LIST] [--format json|text|shell] [--only SUITES] [--max-profiles N] [--full] [--dispatch] [--ref REF]
           thingino-arch check   [--repo PATH] [--from REF] [--to REF] [--files LIST] [--changed] [--baseline FILE] [--write-baseline [FILE]] [--strict]
           thingino-arch packet  [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE]
 

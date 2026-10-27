@@ -157,6 +157,12 @@ class ThinginoArchTest < Minitest::Test
       assert_includes plan.suites.to_a, "playwright"
       assert_includes plan.shell, "qemu_t31x_ethwifi"
       assert_includes plan.shell, "--only health,playwright,services,webui"
+      assert_equal ["qemu_t31x_ethwifi"], plan.profiles.map { |profile| profile["profile"] }
+      assert_equal(
+        ["gh", "workflow", "run", "qemu-test.yaml", "-R", "themactep/thingino-firmware",
+         "--ref", "feature", "-f", "profiles=qemu_t31x_ethwifi", "-f", "runner_arch=x86_64"],
+        plan.dispatch_command(repo_slug: "themactep/thingino-firmware", ref: "feature")
+      )
     end
   end
 

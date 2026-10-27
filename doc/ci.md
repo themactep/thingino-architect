@@ -77,8 +77,8 @@ authority.
 
 The packet can be downloaded from the workflow run and given to an agent. It
 is not posted as a PR comment. It includes the QEMU verification plan, but the
-deterministic job does not build or boot the image; use the QEMU workflow for
-execution.
+deterministic job does not build or boot the image; use the native
+`qemu-test.yaml` workflow for execution.
 
 ### Failure semantics
 
@@ -168,61 +168,63 @@ preserves its own artifacts for debugging.
 
 See [ocr.md](ocr.md) for the rule pack and evaluation method.
 
-## QEMU verification workflow
+## Native QEMU workflow
 
-`ci/qemu-check.yml` runs the QEMU plan from `thingino-arch verify`.
+Thingino's firmware repository already has
+`.github/workflows/qemu-test.yaml`. It builds selected QEMU profiles and runs
+the QEMU suite on GitHub-hosted runners.
 
-### Trigger
+### Dispatch
 
-Manual dispatch with:
+`thingino-arch verify` generates the profile plan and can dispatch the native
+workflow directly:
 
-- `base_ref`;
-- `head_sha`;
-- `max_profiles`;
-- optional `only` suites.
+```sh
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --from origin/master --to HEAD \
+  --ref <branch> \
+  --dispatch
+```
 
-It is not triggered on every PR by default. QEMU verification is heavier than
-the deterministic job and needs a runner with the emulator, build toolchain,
-network lab, and browser dependencies.
+This runs:
+
+```sh
+gh workflow run qemu-test.yaml \
+  -R themactep/thingino-firmware \
+  --ref <branch> \
+  -f "profiles=<selected profiles>" \
+  -f runner_arch=x86_64
+```
+
+Requirements:
+
+- `gh` is installed and authenticated;
+- the repository remote named `origin` points at GitHub;
+- `--ref` names a branch or tag in the base repository.
+
+Use `--github-repo OWNER/REPO` if `origin` is not the target, and `--workflow`
+if the workflow file has a different name.
 
 ### Runner
 
-The template uses:
+The native workflow uses GitHub-hosted `ubuntu-26.04` runners. It installs the
+build dependencies in a container, downloads the pinned Ingenic QEMU binary,
+installs `dnsmasq`, `tcpdump`, and Playwright Chromium, and runs the suite.
 
-```yaml
-runs-on: [self-hosted, linux, thingino-qemu]
-```
+This means no self-hosted runner registration is required. The tradeoff is cost
+and runtime: a full profile build takes tens of minutes.
 
-The runner needs:
+### Inputs
 
-- the Thingino build toolchain and enough disk for profile builds;
-- the pinned Ingenic QEMU binary, or network access to fetch it;
-- `python3`, `dnsmasq`, `tcpdump`, `node`/`npm`, and Playwright Chromium;
-- passwordless `sudo` for tap/slip runs;
-- `/dev/net/tun`;
-- enough CPU and time for TCG boots.
+| Input | Meaning |
+| --- | --- |
+| `profiles` | Space-separated QEMU profiles |
+| `runner_arch` | `x86_64` or `arm64` build worker |
 
-Do not use a public GitHub-hosted runner unless you have validated the tap/slip
-and Playwright setup.
-
-### Permissions
-
-```yaml
-permissions:
-  contents: read
-```
-
-The job writes artifacts and a job summary, not PR comments.
-
-### Steps
-
-1. Check out the requested head SHA with full history.
-2. Fetch the base branch.
-3. Set up Ruby.
-4. Run `thingino-arch verify --format shell` into `qemu-plan.sh`.
-5. Skip if the plan has no profiles.
-6. Run `bash qemu-plan.sh`.
-7. Publish the plan and upload `qemu-reports/`.
+The native workflow always runs the full suite for each profile. `verify
+--dispatch` therefore rejects `--only`; use the local plan if you need suite
+selection.
 
 ### Coverage
 
@@ -233,14 +235,23 @@ The QEMU suite boots the real image and covers boot/services, network,
 WiFi portal, WebUI, ONVIF, USB, GPIO, and emulated sensors. It does not cover
 real hardware, RF, power, thermal, or unmodeled peripherals.
 
-### Cost and flakiness
+### Artifacts
 
-- Build only the selected profiles.
-- Cache the base image and the QEMU binary on the runner.
-- Start with `max_profiles=1` or `2` for a pilot.
-- Treat Playwright and lab-heavy suites as the flakiest; keep them advisory
-  until the check list is stable.
-- Use the stable QEMU check names for regression comparisons.
+The workflow uploads:
+
+- `qemu-test-image-<profile>`;
+- `qemu-test-report-<profile>`, including `report.html`, `serial-results.json`,
+  screenshots, serial logs, and Playwright results.
+
+### Limitations
+
+- `workflow_dispatch` runs a branch in the base repository. It cannot target a
+  fork branch directly. For a fork PR, create a temporary branch in the base
+  repository at the PR head and dispatch on that branch.
+- The native workflow must contain the non-`master` output path fix
+  (`output/${{ github.ref_name }}`). Without it, artifact staging uses
+  `output/master` and fails on any other branch.
+- The native workflow runs the full suite; per-suite selection is not exposed.
 
 ## Setup
 
@@ -284,14 +295,20 @@ simpler vendored model and relies on review controls.
 Then configure the secrets and variables, and trigger it manually for a test
 PR.
 
-### 5. Enable QEMU verification
+### 5. Use the native QEMU workflow
+
+No extra workflow is installed. The firmware tree already has
+`.github/workflows/qemu-test.yaml`. Dispatch it with:
 
 ```sh
-./integrate.sh --repo ../firmware/master --with-qemu
+tools/thingino-arch/bin/thingino-arch verify \
+  --repo . \
+  --from origin/master --to HEAD \
+  --ref <branch> --dispatch
 ```
 
-Register a self-hosted runner with the `thingino-qemu` label, then run the
-workflow manually against a test commit.
+Confirm the target branch contains the non-`master` output path fix in the
+QEMU workflow.
 
 ### 6. Decide on automatic review
 

@@ -37,6 +37,20 @@ module ThinginoArch
       }
     end
 
+    def dispatch_command(repo_slug:, ref:, runner_arch: "x86_64", workflow: "qemu-test.yaml")
+      if profiles.empty?
+        raise ArgumentError, "no QEMU profiles selected"
+      end
+
+      [
+        "gh", "workflow", "run", workflow,
+        "-R", repo_slug,
+        "--ref", ref,
+        "-f", "profiles=#{profiles.map { |profile| profile['profile'] }.join(' ')}",
+        "-f", "runner_arch=#{runner_arch}"
+      ]
+    end
+
     def shell
       lines = ["cd #{Shellwords.escape(index.repo.root)}", "set -eu"]
       if profiles.empty?

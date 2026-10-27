@@ -194,6 +194,8 @@ bin/thingino-arch verify \
   [--only SUITES] \
   [--max-profiles N] \
   [--full] \
+  [--dispatch] [--ref REF] [--runner-arch ARCH] \
+  [--github-repo OWNER/REPO] [--workflow FILE] \
   [--output FILE]
 ```
 
@@ -209,6 +211,11 @@ Options:
 | `--only SUITES` | Override the optional QEMU suite list |
 | `--max-profiles N` | Maximum profiles across families; default 4 |
 | `--full` | Use all affected families and run full suites |
+| `--dispatch` | Dispatch the native `qemu-test.yaml` workflow |
+| `--ref REF` | Branch or tag to dispatch on; defaults to the current branch |
+| `--runner-arch ARCH` | Build architecture for the native workflow; default `x86_64` |
+| `--github-repo OWNER/REPO` | Override the repository derived from `origin` |
+| `--workflow FILE` | Workflow file to dispatch; default `qemu-test.yaml` |
 | `--output FILE` | Write the plan to a file |
 
 The plan selects QEMU profiles from `configs/cameras-testing/*/qemu-test.json`
@@ -235,8 +242,25 @@ The plan contains, per profile:
 - the selected optional suites and any flags;
 - whether the backend requires `sudo` and `/dev/net/tun`.
 
-`--format shell` emits the commands directly. The QEMU workflow executes that
-output. `verify` does not build or boot anything itself.
+`--format shell` emits local build and run commands. `verify` does not build or
+boot anything itself.
+
+`--dispatch` runs the native firmware workflow instead:
+
+```sh
+gh workflow run qemu-test.yaml \
+  -R themactep/thingino-firmware \
+  --ref <branch> \
+  -f "profiles=qemu_t31x_ethwifi qemu_t41nq" \
+  -f runner_arch=x86_64
+```
+
+The native workflow runs the full QEMU suite. It does not accept `--only`
+suite selection, so `--dispatch` and `--only` are mutually exclusive.
+
+Dispatching requires `gh`, a GitHub remote named `origin`, and a branch ref.
+For a fork PR, dispatch on a branch in the base repository; `workflow_dispatch`
+cannot target a fork branch directly.
 
 Example:
 

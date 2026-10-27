@@ -355,8 +355,9 @@ the findings and intentionally fixing or accepting them.
 - the plan records build and run commands, required privileges, skipped
   families, and notes.
 
-The class does not execute the plan. `verify --format shell` writes the
-commands; the QEMU workflow runs them on a self-hosted runner.
+The class does not build or boot anything. `verify --format shell` writes local
+commands; `verify --dispatch` runs the native `qemu-test.yaml` workflow through
+`gh`.
 
 ## Packet
 
@@ -425,8 +426,8 @@ instead.
 - Conditional Kconfig defaults and dependencies are approximated.
 - Camera selection is computed from main symbols, not a full Kconfig run.
 - Impact is path-based and conservative.
-- The tool itself does not build or boot the image; `verify` emits a plan and
-the QEMU workflow executes it.
+- The tool itself does not build or boot the image; `verify` emits a plan or
+dispatches the native QEMU workflow.
 - QEMU covers emulated Ingenic behavior, not real hardware, RF, power, thermal,
   or unmodeled peripherals.
 - Patch content is reviewed as text; the patched source is not present.

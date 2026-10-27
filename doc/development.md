@@ -31,7 +31,6 @@ rules/thingino-review.json     OCR rule pack
 prompts/architecture-review.md architecture review prompt
 ci/architecture-check.yml      deterministic PR workflow
 ci/ocr-review.yml              optional OCR workflow
-ci/qemu-check.yml              optional self-hosted QEMU workflow
 baseline.json                  reference baseline
 test/thingino_arch_test.rb     Minitest suite
 doc/                           this documentation
@@ -53,7 +52,7 @@ test. It covers:
 - plugin conflicts for co-selected packages;
 - impact mapping from packages and unreferenced fragments;
 - QEMU profile selection and suite selection;
-- the `verify` shell plan through the CLI;
+- the `verify` shell plan and dispatch command through the CLI;
 - baseline suppression;
 - changed-scope filtering through the CLI;
 - OCR rule ordering.
@@ -195,7 +194,7 @@ When the firmware adds a profile or a suite changes capability requirements:
 4. update `Verification` when a new capability or suite needs a selection
    rule;
 5. add a fixture profile and a test assertion;
-6. update [ci.md](ci.md) if the runner requirements change.
+6. update [ci.md](ci.md) if the native workflow inputs or behavior change.
 
 ## Changing the architecture brief
 

@@ -22,7 +22,8 @@ harness; this tool supplies the architecture context and the checks it lacks.
 - **Index** the source of truth: packages, Kconfig, WiFi driver matrix, SoC
   and kernel maps, camera profiles, fragments, init scripts, WebUI plugins.
 - **Impact** a change: map changed files to entities and camera profiles.
-- **Verify** a change: choose QEMU test profiles and suites for the affected families.
+- **Verify** a change: choose QEMU test profiles and suites, or dispatch the
+  native `qemu-test` workflow.
 - **Check** structural invariants: unreachable Kconfig, missing hashes,
   unregistered WiFi drivers, incomplete camera profiles, conflicting plugins
   or init scripts, undefined symbols, SoC model conflicts.
@@ -51,6 +52,11 @@ bin/thingino-arch verify \
   --from origin/master --to HEAD \
   --max-profiles 2
 
+bin/thingino-arch verify \
+  --repo ../firmware/master \
+  --from origin/master --to HEAD \
+  --ref <branch> --dispatch
+
 bin/thingino-arch packet \
   --repo ../firmware/master \
   --from origin/master --to HEAD \
@@ -76,11 +82,13 @@ Optional flags:
 
 ```sh
 ./integrate.sh --repo ../firmware/master --with-ocr
-./integrate.sh --repo ../firmware/master --with-qemu
 ./integrate.sh --repo ../firmware/master --refresh-baseline
 ./integrate.sh --repo ../firmware/master --dry-run
 ./integrate.sh --repo ../firmware/master --force
 ```
+
+QEMU execution uses the native `qemu-test.yaml` workflow in the firmware
+repository. See [doc/ci.md](doc/ci.md) for the workflow and dispatch details.
 
 See [doc/integration.md](doc/integration.md) for the full lifecycle.
 
@@ -119,7 +127,6 @@ rules/thingino-review.json     OCR rule pack
 prompts/architecture-review.md architecture review prompt
 ci/architecture-check.yml      deterministic PR workflow
 ci/ocr-review.yml              optional OCR workflow
-ci/qemu-check.yml              optional self-hosted QEMU workflow
 baseline.json                  reference baseline
 test/                          Minitest fixture suite
 doc/                           documentation

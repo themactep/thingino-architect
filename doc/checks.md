@@ -290,7 +290,7 @@ The following are handled elsewhere and should not be duplicated:
 - TZ string validity, do-not-edit paths, plugin contract;
 - Buildroot `check-package`;
 - compilation, kernel build, image assembly;
-- QEMU or hardware behavior; use `thingino-arch verify` and the QEMU workflow.
+- QEMU or hardware behavior; use `thingino-arch verify` and the native QEMU workflow.
 
 The checks are intentionally conservative. A new check should be exact enough
 that a false positive is rare, or it should be informational.

@@ -274,8 +274,8 @@ The note names the fallback. Add or adjust a profile if that coverage matters.
 ## QEMU run needs sudo or fails to open a tap device
 
 Profiles with `"net": "tap"` or `"net": "slip"` need root and `/dev/net/tun`.
-`run.sh` re-execs under `sudo`. On a CI runner, configure passwordless sudo and
-the tun device. Use a slirp or USB profile when a lab backend is not available.
+`run.sh` re-execs under `sudo`. For local runs, configure passwordless sudo and
+the tun device. The native GitHub-hosted workflow already provides this.
 
 ## QEMU cannot find the image or QEMU binary
 
@@ -305,13 +305,30 @@ need it pre-populated in the cache or provided with `QEMU_BIN`.
 - Use a single representative family for broad changes.
 - Cache toolchain downloads and the QEMU binary.
 - Keep `qemu-reports/` artifacts small by uploading only the needed profiles.
-- Run QEMU on a self-hosted runner close to the build cache.
+- Use the native workflow caches and a single representative profile.
 
 ## T33, C100, or CW080 has no QEMU plan
 
 The QEMU fork has machines for these SoCs, but the firmware tree may not have a
 `configs/cameras-testing` profile for them yet. Add the profile and a
 `qemu-test.json` first; the tool indexes it automatically.
+
+## `verify --dispatch` fails
+
+Check:
+
+- `gh` is installed and authenticated;
+- `origin` points at the GitHub repository, or pass `--github-repo OWNER/REPO`;
+- `--ref` names a branch or tag, not a detached HEAD;
+- the workflow file exists and is dispatchable;
+- the target branch's QEMU workflow contains the non-`master` output path fix.
+
+`workflow_dispatch` cannot target a fork branch directly. Create a temporary
+branch in the base repository at the PR head, or use the existing
+pull-request-triggered infrastructure. Do not create a base branch from an
+untrusted fork without reviewing what will run.
+
+If `--only` was supplied, remove it: the native workflow runs the full suite.
 
 ## Where to look next
 

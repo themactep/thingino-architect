@@ -82,21 +82,26 @@ OCR uses the first matching rule. The current order is:
 | 3 | `**/*.config` | Buildroot/BusyBox config contract |
 | 4 | `**/thingino.json` | Camera runtime metadata |
 | 5 | `**/*.{dts,dtsi}` | Device tree |
-| 6 | `**/*.patch` | Patch provenance and applicability |
-| 7 | `**/*.mk` | Buildroot package contract |
-| 8 | `**/*.{sh,cgi}` | Shell/CGI security and lifecycle |
-| 9 | `**/files/**/*.in` | Shell templates |
-| 10 | `**/init.d/**` | Init contract |
-| 11 | `**/files/**/{S,K}[0-9]*` | Package service scripts |
-| 12 | `**/*.{c,h,cpp,cc,cxx,hpp,hxx}` | Embedded C/C++ |
-| 13 | `**/*.{js,jsx,ts,tsx,mjs,cjs,py,pyi,rb}` | WebUI/tooling boundary |
-| 14 | `**/*.hash` | Package integrity |
-| 15 | `**/files/**` | Payload catch-all; content-aware |
-| 16 | `**/{S,K}[0-9]*` | Other service scripts |
+| 6 | `**/package/ingenic-sdk/*.patch` | SDK cross-tree patch coverage |
+| 7 | `**/*.patch` | Patch provenance and applicability |
+| 8 | `**/*.mk` | Buildroot package contract |
+| 9 | `**/*.{sh,cgi}` | Shell/CGI security and lifecycle |
+| 10 | `**/files/**/*.in` | Shell templates |
+| 11 | `**/init.d/**` | Init contract |
+| 12 | `**/files/**/{S,K}[0-9]*` | Package service scripts |
+| 13 | `**/*.{c,h,cpp,cc,cxx,hpp,hxx}` | Embedded C/C++ |
+| 14 | `**/*.{js,jsx,ts,tsx,mjs,cjs,py,pyi,rb}` | WebUI/tooling boundary |
+| 15 | `**/*.hash` | Package integrity |
+| 16 | `**/files/**` | Payload catch-all; content-aware |
+| 17 | `**/{S,K}[0-9]*` | Other service scripts |
 
 The order is deliberate. Language-specific rules must come before the
 `**/files/**` catch-all, and `.in` template rules must come before the broad
 payload rule. The test suite checks this ordering.
+
+The `package/ingenic-sdk/*.patch` rule is specific because the SDK ships more
+than one kernel tree and alternate drivers. A patch that fixes one copy is not
+complete until the other copies are checked.
 
 ### Overloaded paths
 

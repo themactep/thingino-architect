@@ -195,6 +195,7 @@ class ThinginoArchTest < Minitest::Test
     assert_operator paths.index("**/files/**"), :>, paths.index("**/*.{c,h,cpp,cc,cxx,hpp,hxx}")
     assert_operator paths.index("**/files/**"), :>, paths.index("**/*.{js,jsx,ts,tsx,mjs,cjs,py,pyi,rb}")
     assert_operator paths.index("**/files/**"), :>, paths.index("**/*.hash")
+    assert_operator paths.index("**/package/ingenic-sdk/*.patch"), :<, paths.index("**/*.patch")
     assert_operator paths.index("**/files/**/*.in"), :<, paths.index("**/files/**")
   end
 

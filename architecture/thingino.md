@@ -180,6 +180,10 @@ A change that crosses a boundary must update both sides of the contract.
   `prudynt.json`.
 - `package/all-patches` is a shared patch store; a change there can affect
   many packages and every camera built from them.
+- The Ingenic SDK ships more than one kernel tree (for example 3.10.14 and
+  4.4.94) and alternate motor drivers (`misc/motor`, `misc/ms419xx`). A patch
+  that fixes one copy is incomplete unless every copy is checked and the
+  unaffected ones are explained.
 - `docs/dev/packages.md` is generated; do not treat it as the source of truth.
 - `scripts/check-do-not-edit.sh` and the manifest in `scripts/do-not-edit.txt`
   protect generated or externally owned paths.
@@ -232,6 +236,10 @@ repository.
 If those repositories are not available in the review workspace, treat
 cross-repo impact as unverified and list it under verification needed. Do not
 assume the pinned component already has the new API, symbol, or configuration.
+
+For `ingenic-sdk` changes, check the same code in every kernel tree and in
+alternate drivers. For example, a `misc/motor` fix may also belong in
+`misc/ms419xx` and in both 3.10.14 and 4.4.94.
 
 ## 11. Output contract
 

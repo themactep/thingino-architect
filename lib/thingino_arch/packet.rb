@@ -159,6 +159,20 @@ module ThinginoArch
         lines << ""
       end
 
+      pinned = packages.select { |package| !package["site"].to_s.empty? && !package["version"].to_s.empty? }
+      unless pinned.empty?
+        lines << "#### Component pins"
+        lines << ""
+        lines << "| Package | Site | Version |"
+        lines << "| --- | --- | --- |"
+        pinned.each do |package|
+          lines << "| `#{package['name']}` | #{package['site']} | `#{package['version']}` |"
+        end
+        lines << ""
+        lines << "Fetch these repositories at the pinned versions before claiming cross-repo compatibility."
+        lines << ""
+      end
+
       unless cameras.empty?
         lines << "#### Camera profiles"
         lines << ""

@@ -187,6 +187,26 @@ class ThinginoArchTest < Minitest::Test
     end
   end
 
+  def test_qemu_results_parse_profile
+    Dir.mktmpdir("thingino-qemu-results") do |directory|
+      report = File.join(directory, "report")
+      FileUtils.mkdir_p(report)
+      File.write(File.join(report, "serial-results.json"), JSON.generate([
+        { "name" => "boot", "pass" => true, "detail" => "40s" },
+        { "name" => "webui", "pass" => false, "detail" => "login failed" }
+      ]))
+      File.write(File.join(report, "playwright-results.json"), JSON.generate(
+        "stats" => { "expected" => 2, "unexpected" => 1, "flaky" => 0 }
+      ))
+      result = ThinginoArch::QemuResults.parse_profile(directory, "qemu_t31x")
+      assert_equal 2, result["checks"]
+      assert_equal 1, result["passed"]
+      assert_equal 1, result["failed"]
+      assert_equal "webui", result["failures"].first["name"]
+      assert_equal 1, result["playwright"]["unexpected"]
+    end
+  end
+
   def test_ocr_rule_pack_order
     data = JSON.parse(File.read(File.expand_path("../rules/thingino-review.json", __dir__)))
     paths = data["rules"].map { |rule| rule["path"] }
